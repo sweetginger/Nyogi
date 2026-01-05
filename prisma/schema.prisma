@@ -1,0 +1,160 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Meeting {
+  id          String   @id @default(uuid())
+  title       String
+  type        MeetingType
+  meetUrl     String?
+  languages   String[] @default([])
+  inviteMode  InviteMode
+  scheduledAt DateTime?
+  createdBy   String   // Clerk user ID
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  access      MeetingAccess?
+  captions     CaptionFinal[]
+  summaries    Summary[]
+  documents    Document[]
+  sessions     MeetingSession[]
+
+  @@index([createdBy])
+  @@index([createdAt])
+}
+
+model MeetingAccess {
+  id         String   @id @default(uuid())
+  meetingId  String   @unique
+  mode       AccessMode @default(public)
+  allowEmails String[] @default([])
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  meeting    Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  @@index([meetingId])
+}
+
+model CaptionFinal {
+  id         String   @id @default(uuid())
+  meetingId  String
+  seq        Int
+  speaker    Speaker
+  tsStartMs  Int
+  tsEndMs    Int
+  srcLang    String
+  srcText    String
+  tgtLang    String
+  tgtText    String
+  createdAt  DateTime @default(now())
+
+  meeting    Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  @@unique([meetingId, seq])
+  @@index([meetingId])
+}
+
+model Summary {
+  id         String   @id @default(uuid())
+  meetingId  String
+  lang       String
+  content    String   @db.Text
+  createdAt  DateTime @default(now())
+
+  meeting    Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  @@index([meetingId])
+}
+
+model Keyword {
+  id         String   @id @default(uuid())
+  scopeType  ScopeType
+  scopeId    String
+  keyword    String
+  createdAt  DateTime @default(now())
+
+  @@index([scopeType, scopeId])
+  @@index([keyword])
+}
+
+model Document {
+  id               String   @id @default(uuid())
+  meetingId        String
+  filename         String
+  extractedContext String   @db.Text
+  extractedTerms   Json
+  createdAt        DateTime @default(now())
+
+  meeting          Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  @@index([meetingId])
+}
+
+enum MeetingType {
+  in_person
+  google_meet
+  zoom
+}
+
+enum InviteMode {
+  now
+  later
+  scheduled
+}
+
+enum AccessMode {
+  public
+  allowlist
+}
+
+enum Speaker {
+  S1
+  S2
+}
+
+enum ScopeType {
+  user
+  meeting
+}
+
+enum SessionStatus {
+  IDLE
+  RECORDING
+  UPLOADING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model MeetingSession {
+  id          String        @id @default(uuid())
+  meetingId   String
+  startedBy   String        // Clerk user ID
+  startedAt   DateTime      @default(now())
+  endedAt     DateTime?
+  completedAt DateTime?
+  status      SessionStatus @default(IDLE)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  meeting     Meeting       @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  @@index([meetingId])
+  @@index([startedBy])
+  @@index([status])
+  @@index([startedAt])
+}
+
+
+
+
